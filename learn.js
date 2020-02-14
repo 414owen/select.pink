@@ -30,6 +30,7 @@ const allEq = (arr1, arr2) => arr1.length === arr2.length &&
 // DOM search
 
 const q = (query, el = document) => el.querySelector(query);
+
 const qa = (query, el = document) => Array.from(el.querySelectorAll(query));
 
 // DOM modification
@@ -141,11 +142,7 @@ const css = q("#interactive-css");
 
 const onInputChange = () => {
   const selector = `#overlay ${input.value}`;
-  css.innerText = `
-    ${selector} {
-      background-color: rgba(0, 255, 0, 0.5);
-    }
-  `;
+  appendChildren([crText(`${selector} { background-color: rgba(0, 255, 0, 0.5); }`)], emptyEl(css));
   if (allEq(qa(selector), [target])) {
     if (levelNum + 1 === levelAmt) input.value = "YOU WIN!";
     else {
