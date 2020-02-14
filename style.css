@@ -47,7 +47,7 @@ textarea {
   position: absolute;
 }
 
-#overlay {
+.hint, #overlay {
   background-color: transparent !important;
 }
 
@@ -60,7 +60,11 @@ textarea {
   margin: 0 auto;
 }
 
-#sandbox > * * {
+.hint {
+  position: absolute;
+}
+
+#sandbox > * *:not(.hint) {
   border: 1px solid;
   min-width: 100px;
   min-height: 50px;

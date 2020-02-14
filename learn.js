@@ -27,11 +27,17 @@ const uncurry = fn => a => fn(...a);
 const allEq = (arr1, arr2) => arr1.length === arr2.length &&
   zip(arr1, arr2).every(uncurry(eq));
 
+const select = curry((k, o) => o[k]);
+
+const produce = (el, fn) => el ? [el, ...produce(fn(el), fn)] : [];
+
 // DOM search
 
 const q = (query, el = document) => el.querySelector(query);
 
 const qa = (query, el = document) => Array.from(el.querySelectorAll(query));
+
+const parents = el => produce(el, select("parentNode"));
 
 // DOM modification
 
@@ -54,7 +60,7 @@ const setDisabled = (disabled, el) => classMod({ disabled }, el);
 
 // DOM creation
 
-const crel = (el, atts, children) => appendChildren(children, attrs(document.createElement(el), atts));
+const crel = (el, atts = {}, children = []) => appendChildren(children, attrs(document.createElement(el), atts));
 
 const crText = str => document.createTextNode(str);
 
@@ -63,10 +69,6 @@ const withEvent = curry((ev, el, callback) => id(el, el.addEventListener("click"
 const withClick = withEvent("click");
 
 // Levels
-
-const underlay = q("#underlay");
-
-const overlay = q("#overlay");
 
 const levelOne =
   [ { }, { target: true } ];
@@ -82,7 +84,6 @@ const levels =
   , levelTwo
   ];
 
-
 // Level logic
 
 const levelAmt = levels.length;
@@ -94,7 +95,10 @@ const createLevelNodes = nodes => {
 
 const createLevelNode = ({ el = "div", children = [], target, ...attrs }) => {
   const [ childEls, subTarget ] = createLevelNodes(children);
-  const layer = crel(el, attrs, childEls);
+  const layer = crel(el, attrs, [
+    crel("span", {className: "hint"}, [crText(el)]),
+    ...childEls
+  ]);
   return [ layer, target ? layer : subTarget ];
 };
 
@@ -110,16 +114,18 @@ const renderLevel = level => {
 };
 
 const leftArrow = q(".paginator.left");
-
 const rightArrow = q(".paginator.right");
+const input = q("#selector-input");
+const css = q("#interactive-css");
+const underlay = q("#underlay");
+const overlay = q("#overlay");
 
 const parseLevel = s => Math.max(Math.min(parseInt(s, 10) - 1 || 0, levelAmt - 1), 0);
 
 let maxLevel = Math.min(levelAmt, parseLevel(localStorage.getItem("max-lev")));
-let target = null;
-
 let levelNum = Math.min(maxLevel, parseLevel(location.hash.slice(1)));
 location.hash = levelNum + 1;
+let target = null;
 
 const paginate = () => {
   setDisabled(levelNum <= 0, leftArrow);
@@ -134,22 +140,35 @@ const level = () => {
 };
 
 level(levelNum);
+
 const onPaginateLeft = () => { levelNum--; setTimeout(level); };
 const onPaginateRight = () => { levelNum++; setTimeout(level); };
 
-const input = q("#selector-input");
-const css = q("#interactive-css");
+const unlockLevel = () => {
+  maxLevel = Math.min(levelNum + 1, levelAmt);
+  paginate();
+};
 
+const onComplete = () => {
+  if (levelNum + 1 === levelAmt) input.value = "YOU WIN!";
+  else unlockLevel();
+};
+
+const isInLevel = el => parents(el).some(el => el.id === "overlay");
+
+let matches = [];
 const onInputChange = () => {
   const selector = `#overlay ${input.value}`;
-  appendChildren([crText(`${selector} { background-color: rgba(0, 255, 0, 0.5); }`)], emptyEl(css));
-  if (allEq(qa(selector), [target])) {
-    if (levelNum + 1 === levelAmt) input.value = "YOU WIN!";
-    else {
-      maxLevel = Math.min(levelNum + 1, levelAmt);
-      paginate();
+  matches.forEach(match => {
+    match.style.backgroundColor = null;
+  });
+  matches = qa(selector);
+  matches.forEach(match => {
+    if (isInLevel(match)) {
+      match.style.backgroundColor = "rgba(0, 255, 0, 0.5)";
     }
-  }
+  });
+  if (allEq(qa(selector), [target])) onComplete();
 };
 
 onInputChange();
