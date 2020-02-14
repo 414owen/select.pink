@@ -1,0 +1,70 @@
+html, textarea {
+  background-color: #000;
+}
+
+::placeholder {
+  color: #aaa;
+}
+  
+* {
+  color: #fff;
+  border-color: #aaa;
+  font-family: Monospace;
+}
+
+body {
+  width: 800px;
+  margin: 0 auto;
+}
+
+textarea {
+  resize: none;
+  border: 1px solid;
+}
+
+#selector-input {
+  width: 100%;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.paginator, #arrow {
+  font-size: 50px;
+}
+
+.paginator.disabled {
+  color: #222;
+  pointer-events: none;
+}
+
+.overlay-container {
+  position: relative;
+}
+
+.overlay {
+  position: absolute;
+}
+
+#overlay {
+  background-color: transparent !important;
+}
+
+#sandbox-container {
+  display: flex;
+  align-items: center;
+}
+
+#sandbox {
+  margin: 0 auto;
+}
+
+#sandbox > * * {
+  border: 1px solid;
+  min-width: 100px;
+  min-height: 50px;
+  margin: 20px;
+  display: inline-block;
+  transition: background-color 0.5s linear;
+}
