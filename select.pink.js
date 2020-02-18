@@ -1,50 +1,140 @@
-// Functional
+// Constants
 
-const curryN = (n, fn) => (...a) =>
-  a.length >= n ? fn(...a) : curryN(n - a.length, (...a2) => fn(...a, ...a2));
-
-const curry = fn => curryN(fn.length, fn);
-
-const partial = (fn, ...a1) => (...a2) => fn(...a1, ...a2);
-
-const id = a => a;
-
-const fst = ([ a ]) => a;
-
-const snd = ([ _, b ]) => b;
-
-const unzip = arr => [ arr.map(fst), arr.map(snd) ];
-
-const range = to => Array(to).fill(0).map((_, i) => i);
-
-const zip = (arr1, arr2) =>
-  range(Math.min(arr1.length, arr2.length)).map(i => [arr1[i], arr2[i]]);
-
-const eq = (a, b) => a === b;
-
-const uncurry = fn => a => fn(...a);
-
-const allEq = (arr1, arr2) => arr1.length === arr2.length &&
-  zip(arr1, arr2).every(uncurry(eq));
-
-const select = curry((k, o) => o[k]);
-
-const produce = (el, fn) => el ? [el, ...produce(fn(el), fn)] : [];
-
-const last = arr => arr[arr.length - 1];
-
-// associative binary operation to vararg fn
-const assocBinOp = (fn, identity) => (...args) => args.reduce(fn, identity);
+const REMOVE_OLD = true;
+const VERSION = "0.3.4";
+const MAX_LEVEL_KEY = "max-level";
+const VERSION_KEY = "pink.version";
 
 // DOM search
 
 const q = (query, el = document) => el.querySelector(query);
-
 const qa = (query, el = document) => Array.from(el.querySelectorAll(query));
-
 const parents = el => produce(el, select("parentNode"));
-
 const domInd = el => [...el.parentNode.childNodes].indexOf(el);
+
+// DOM nodes
+
+const leftArrow = q(".paginator.left");
+const rightArrow = q(".paginator.right");
+const input = q("#selector-input");
+const css = q("#interactive-css");
+const underlay = q("#underlay");
+const overlay = q("#overlay");
+const indicator = q("#indicator");
+const description = q("#description");
+const referencesNode = q("#references");
+const errormsg = q("#errormsg");
+
+// References
+
+const classSelectorHint = ["class selectors", "https://developer.mozilla.org/en-US/docs/Web/CSS/Class_selectors"];
+const adjacentSiblingSelectorHint = ["adjacent sibling combinator", "https://developer.mozilla.org/en-US/docs/Web/CSS/Adjacent_sibling_combinator"];
+const siblingHint = ["general sibling combinator", "https://developer.mozilla.org/en-US/docs/Web/CSS/General_sibling_combinator"];
+const typeSelectors = ["type selectors", "https://developer.mozilla.org/en-US/docs/Web/CSS/Type_selectors"];
+const idSelectorHint = ["id selectors", "https://developer.mozilla.org/en-US/docs/Web/CSS/ID_selectors"];
+
+// Blacklisted selector sets
+
+const childSelectors = [":nth-child", ":first-child", ":last-child"];
+
+// Levels
+
+const levels =
+  // span
+  [{ description: "turn the white box pink"
+    , blacklist: childSelectors
+    , topology: [{}, { el: "span", target: true }]
+    , references: [typeSelectors]
+    }
+  // div
+  , { description: "turn the white boxes pink"
+    , blacklist: childSelectors
+    , topology: [{ target: true }, { el: "span" }, { target: true }]
+    , references: [typeSelectors]
+    }
+  // #alice
+  , { description: "use the id"
+    , topology: { sub: { id: "alice", target: true, sub: {} } }
+    , references: [idSelectorHint]
+    }
+  // .bob
+  , { description: "use the class"
+    , topology: { sub: { "class": "bob", target: true, sub: { sub: {} } } }
+    , references: [classSelectorHint]
+    }
+  // .octo.pus
+  , { description: "use the classes"
+    , blacklist: childSelectors
+    , topology: [{ "class": "gum drop" }
+                , { "class":  "gum" }
+                , { "class": "drop" }
+    ]
+    , references: [classSelectorHint]
+    }
+  // #pan.cake
+  , { description: ""
+    , blacklist: childSelectors
+    , topology: [{ sub: { "class": "cake" } }
+                , { sub: [{ id: "pan" }
+                         , { id: "pan", "class": "cake", target: true }
+                ]
+                  }
+    ]
+    , references: [idSelectorHint, classSelectorHint]
+    }
+  // *>*
+  , { description: "select the child node"
+    , topology: [{ sub: [{ target: true }] }]
+    , references: []
+    }
+  // *+*
+  , { description: "select the (+, ~) sibling"
+    , topology: [{ sub: [{ "class": "here", sub: [{}]}, { target: true }] }]
+    , references: []
+    }
+  , { description: "turn the white boxes pink"
+    , topology: [{ "class": "here", sub: [{ target: true, sub: [{ sub: [{}] }] }] }]
+    }
+  , { description: "turn the white boxes pink"
+    , topology: [{}, { target: true }]
+    }
+  , { description: "turn the white boxes pink"
+    , topology: [{ target: true }, {}]
+    }
+  , { description: "turn the white boxes pink"
+    , topology: [{}, { target: true }, {}]
+    }
+  , { description: "turn the white boxes pink"
+    , topology: [{ target: true, sub: [{}] }]
+    }
+  , { description: "turn the white boxes pink"
+    , topology: [{ sub: [{ target: true, sub: [{}] }] }]
+    }
+  , { description: "turn the white boxes pink"
+    , topology: [{ sub: [{ target: true }, {}] }, {}, {}]
+    }
+  ]
+
+// Functional
+
+const l = a => a.length;
+const curryN = (n, fn) => (...a) => l(a) >= n ? fn(...a) : curryN(n - l(a), partial(fn, ...a));
+const curry = fn => curryN(l(fn), fn);
+const select = curry((k, o) => o[k]);
+const partial = (fn, ...a1) => (...a2) => fn(...a1, ...a2);
+const id = a => a;
+const fst = ([a]) => a;
+const snd = ([_, b]) => b;
+const unzip = arr => [arr.map(fst), arr.map(snd)];
+const range = to => Array(to).fill(0).map((_, i) => i);
+const zip = (arr1, arr2) => range(Math.min(l(arr1), l(arr2))).map(i => [arr1[i], arr2[i]]);
+const eq = (a, b) => a === b;
+const uncurry = fn => a => fn(...a);
+const allEq = (arr1, arr2) => l(arr1) === l(arr2) && zip(arr1, arr2).every(uncurry(eq));
+const produce = (el, fn) => el ? [el, ...produce(fn(el), fn)] : [];
+const last = arr => arr[l(arr) - 1];
+// homogeneous binary operation to vararg fn
+const homBinOp = (fn, identity) => (...args) => args.reduce.apply(args, [fn, identity].filter(id));
 
 // DOM modification
 
@@ -54,7 +144,7 @@ const attrs = (el, attrs) =>
   }));
 
 const emptyEl = el =>
-  id(el, Array.from(el.childNodes).forEach(el => { el.remove(); }));
+  id(el, [...el.childNodes].forEach(el => { el.remove(); }));
 
 const appendChildren = (children, el) =>
   id(el, children.forEach(child => el.appendChild(child)));
@@ -69,141 +159,46 @@ const setDisabled = (disabled, el) => classMod({ disabled }, el);
 // DOM creation
 
 const crel = (el, atts = {}, children = []) => appendChildren(children, attrs(document.createElement(el), atts));
-
 const crText = str => document.createTextNode(str);
-
 const withEvent = curry((ev, el, callback) => id(el, el.addEventListener(ev, callback)));
-
 const withClick = withEvent("click");
 
 // Sets
 
-// (from https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set)
-const symmetricDifference = (setA, setB) => {
-  let _difference = new Set(setA);
-  for (let elem of setB) {
-    if (_difference.has(elem)) {
-      _difference.delete(elem);
-    } else {
-      _difference.add(elem);
-    }
-  }
-  return _difference;
-}
+const difference = homBinOp((setA, setB) => {
+  const res = new Set(setA);
+  [...setB].forEach(el => { res.delete(el); });
+  return res;
+});
 
-const union2 = (setA, setB) => new Set([...setA, ...setB]);
-const union = assocBinOp(union2, new Set());
-
-// Levels
-
-const classSelectorHint = [ "class selectors", "https://developer.mozilla.org/en-US/docs/Web/CSS/Class_selectors" ];
-const adjacentSiblingSelectorHint = [ "adjacent sibling combinator", "https://developer.mozilla.org/en-US/docs/Web/CSS/Adjacent_sibling_combinator" ];
-const siblingHint = [ "general sibling combinator", "https://developer.mozilla.org/en-US/docs/Web/CSS/General_sibling_combinator" ];
-const typeSelectors = [ "type selectors", "https://developer.mozilla.org/en-US/docs/Web/CSS/Type_selectors" ];
-const idSelectorHint = [ "id selectors", "https://developer.mozilla.org/en-US/docs/Web/CSS/ID_selectors" ];
-
-const childSelectors = [ ":nth-child", ":first-child", ":last-child" ];
-
-const levels =
-  // span
-  [ { description: "turn the white box pink"
-    , blacklist: childSelectors
-    , topology: [ {}, { el: "span", target: true } ]
-    , references: [ typeSelectors ]
-    }
-  // div
-  , { description: "turn the white boxes pink"
-    , blacklist: childSelectors
-    , topology: [ { target: true }, { el: "span" }, { target: true } ]
-    , references: [ typeSelectors ]
-    }
-  // #alice
-  , { description: "use the id"
-    , topology: { sub: { id: "alice", target: true, sub: {} } }
-    , references: [ idSelectorHint ]
-    }
-  // .bob
-  , { description: "use the class"
-    , topology: { sub: { "class": "bob", target: true, sub: { sub: {} } } }
-    , references: [ classSelectorHint ]
-    }
-  // .octo.pus
-  , { description: "use the classes"
-    , blacklist: childSelectors
-    , topology: [ { "class": "gum drop" }
-                , { "class":  "gum" }
-                , { "class": "drop" }
-                ]
-    , references: [ classSelectorHint]
-    }
-  // #pan.cake
-  , { description: ""
-    , blacklist: childSelectors
-    , topology: [ { sub: { "class": "cake" } }
-                , { sub: [ { id: "pan" }
-                         , { id: "pan", "class": "cake", target: true }
-                         ]
-                  }
-                ]
-    , references: [ idSelectorHint, classSelectorHint ]
-    }
-  // *>*
-  , { description: "select the child node"
-    , topology: [ { sub: [ { target: true } ] } ]
-    , references: [ ]
-    }
-  // *+*
-  , { description: "select the (+, ~) sibling"
-    , topology: [ { sub: [ { "class": "here", sub: [ {} ]}, { target: true }] } ]
-    , references: [ ]
-    }
-  , { description: "turn the white boxes pink"
-    , topology: [ { "class": "here", sub: [ { target: true, sub: [ { sub: [ {} ] } ] } ] } ]
-    }
-  , { description: "turn the white boxes pink"
-    , topology: [ {}, { target: true } ]
-    }
-  , { description: "turn the white boxes pink"
-    , topology: [ { target: true }, {} ]
-    }
-  , { description: "turn the white boxes pink"
-    , topology: [ {}, { target: true }, {} ]
-    }
-  , { description: "turn the white boxes pink"
-    , topology: [ { target: true, sub: [ {} ] } ]
-    }
-  , { description: "turn the white boxes pink"
-    , topology: [ { sub: [ { target: true, sub: [ {} ] } ] } ]
-    }
-  , { description: "turn the white boxes pink"
-    , topology: [ { sub: [ { target: true }, {} ] }, {}, {} ]
-    }
-  ]
+const union = homBinOp((setA, setB) => new Set([...setA, ...setB]), new Set());
+const intersection = homBinOp((setA, setB) => difference(union(setA, setB), difference(setA, setB), difference(setB, setA)));
+const symmetricDifference = homBinOp((setA, setB) => difference(union(setA, setB), intersection(setA, setB)));
 
 // Level logic
 
-const levelAmt = levels.length;
+const levelAmt = l(levels);
 
 const createLevelNodes = (underlay, n) => {
-  const nodes = (Array.isArray(n) ? n : [ n ]).filter(id);
-  const [ childEls, targetSets ] = unzip(nodes.map(createLevelNode(underlay)));
-  return [ childEls, union(...targetSets) ];
+  const nodes = (Array.isArray(n) ? n : [n]).filter(id);
+  const [childEls, targetSets] = unzip(nodes.map(createLevelNode(underlay)));
+  return [childEls, union(...targetSets)];
 };
 
 const createLevelNode = curry((underlay, { el = "div", sub = [], target, ...attrs }) => {
-  const [ childEls, subTarget ] = createLevelNodes(underlay, sub);
+  const [childEls, subTarget] = createLevelNodes(underlay, sub);
   const layer = crel(el, attrs, [
     ...(underlay ? [crel("pre", {"class": "hint"}, [
       crText([el, ...Object.entries(attrs).map(([k, v]) => `${k}=${v.indexOf(' ') > 0 ? `"${v}"` : v}`)].join('\n'))
-    ])] : []),
+   ])] : []),
     ...childEls
-  ]);
+ ]);
   if (underlay && target) layer.classList.add("target");
-  return [ layer, union(target ? [ layer ] : [], subTarget) ];
+  return [layer, union(target ? [layer] : [], subTarget)];
 });
 
 const renderLevelInto = (level, el, underlay) => {
-  const [ els, targets ] = createLevelNodes(underlay, level);
+  const [els, targets] = createLevelNodes(underlay, level);
   appendChildren(els, emptyEl(el));
   return targets;
 };
@@ -215,19 +210,12 @@ const renderLevel = level => {
   return renderLevelInto(level, overlay);
 };
 
-const leftArrow = q(".paginator.left");
-const rightArrow = q(".paginator.right");
-const input = q("#selector-input");
-const css = q("#interactive-css");
-const underlay = q("#underlay");
-const overlay = q("#overlay");
-const indicator = q("#indicator");
-const description = q("#description");
-const referencesNode = q("#references");
-const errormsg = q("#errormsg");
-
-const MAX_LEVEL_KEY = "max-level";
-
+const versionStored = localStorage.getItem(VERSION_KEY);
+if (REMOVE_OLD && versionStored !== VERSION)
+  [MAX_LEVEL_KEY, ...range(levelAmt).map(a => `ans-${a + 1}`)].forEach(k => {
+    localStorage.removeItem(k);
+  });
+localStorage.setItem(VERSION_KEY, VERSION);
 const parseLevel = s => Math.max(Math.min(parseInt(s, 10) || 1, levelAmt), 1);
 let maxLevel = Math.min(levelAmt, parseLevel(localStorage.getItem(MAX_LEVEL_KEY)));
 let levelNum = Math.min(maxLevel, parseLevel(location.hash.slice(1)));
@@ -253,7 +241,7 @@ const fade = (classes, delay) =>
   })));
 
 const toReferences = references => references.map(([text, href]) =>
-  crel("li", {}, [ crel("a", { href, target: "_blank" }, [ crText(text) ]) ]));
+  crel("li", {}, [crel("a", { href, target: "_blank" }, [crText(text)])]));
 
 const level = () => {
   const { description: txt, topology, references } = levels[levelNum - 1];
@@ -318,18 +306,18 @@ const isWhitespace = c => whitespaceRegex.test(c);
 function* splitCommas(pairs, q) {
   let res = '';
   const stack = [];
-  for (let i = 0; i < q.length; i++) {
+  for (let i = 0; i < l(q); i++) {
     const c = q[i];
     if (pairs[c]) stack.push(pairs[c]);
-    if (stack.length > 0 && last(stack) === c) stack.pop();
-    if (stack.length === 0 && c === ',') {
+    if (l(stack) > 0 && last(stack) === c) stack.pop();
+    if (l(stack) === 0 && c === ',') {
       yield res;
       res = '';
     } else {
       res += c;
     }
   }
-  if (stack.length > 0) throw new SyntaxError(`Expected '${last(stack)}'`);
+  if (l(stack) > 0) throw new SyntaxError(`Expected '${last(stack)}'`);
   yield res;
 }
 
@@ -368,7 +356,9 @@ const getQueryEls = () => {
 const onInvalid = txt => {
   indicator.className = "error";
   setDisabled(true, rightArrow);
-  appendChildren([ crText(txt) ], emptyEl(errormsg));
+  maxLevel = levelNum;
+  localStorage.setItem(MAX_LEVEL_KEY, levelNum);
+  appendChildren([crText(txt)], emptyEl(errormsg));
 };
 
 const getBlacklisted = () => (levels[levelNum - 1].blacklist || []).filter(el => input.value.indexOf(el) >= 0);
@@ -377,11 +367,11 @@ const onInputChange = () => {
   clearMatchColours();
   emptyEl(errormsg);
   const blacklisted = getBlacklisted();
-  if (blacklisted.length > 0) {
+  if (l(blacklisted) > 0) {
     let str;
-    if (blacklisted.length === 1) str = `${blacklisted[0]} is`;
-    else if (blacklisted.length  === 2) str = `${blacklisted[0]} and ${blacklisted[1]} are`
-    else str = `${[blacklisted.slice(0, blacklisted.length - 1).join(", "), last(blacklisted)].join(", and ")} are`;
+    if (l(blacklisted) === 1) str = `${blacklisted[0]} is`;
+    else if (l(blacklisted)  === 2) str = `${blacklisted[0]} and ${blacklisted[1]} are`
+    else str = `${[blacklisted.slice(0, l(blacklisted) - 1).join(", "), last(blacklisted)].join(", and ")} are`;
     onInvalid(`${str} fobidden on this level`);
     return;
   }
