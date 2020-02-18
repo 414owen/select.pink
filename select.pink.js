@@ -393,7 +393,7 @@ const onInputChange = () => {
 };
 
 withEvent("keydown", input, e => {
-  if (event.key === "Enter" && levelNum < maxLevel) changePage(1);
+  if (e.key === "Enter" && levelNum < maxLevel) changePage(1);
 });
 
 level();
