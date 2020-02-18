@@ -54,15 +54,15 @@ html, body {
 }
 
 #neutral {
-  background: radial-gradient(circle, rgba(255,255,255,1) 0%, rgba(255,255,255,0.2) 40%, rgba(0,0,0,0) 90%);
+  background: radial-gradient(circle, rgb(255,255,255) 0%, rgba(255,255,255,0.2) 40%, rgba(0,0,0,0) 90%);
 }
 
 #error {
-  background: radial-gradient(circle, rgba(255,130,130,1) 0%, rgba(255,255,255,0.2) 40%, rgba(0,0,0,0) 90%);
+  background: radial-gradient(circle, rgb(255,130,130) 0%, rgba(255,255,255,0.2) 40%, rgba(0,0,0,0) 90%);
 }
 
 #success {
-  background: radial-gradient(circle, rgba(120,210,150,1) 0%, rgba(255,255,255,0.2) 40%, rgba(0,0,0,0) 90%);
+  background: radial-gradient(circle, rgb(120,210,150) 0%, rgba(255,255,255,0.2) 40%, rgba(0,0,0,0) 90%);
 }
 
 #indicator > * {
@@ -94,7 +94,7 @@ html, body {
 }
 
 .paginator {
-  margin: 20px;
+  padding: 20px;
   user-select: none;
 }
 
@@ -237,5 +237,15 @@ details {
 }
 
 #references {
-  margin-left: 40px;
+  text-align: left;
+  margin: 0 auto;
+  display: inline-block;
+}
+
+#errormsg {
+  color: rgb(255,130,130);
+}
+
+.gum.drop {
+  width: 140px;
 }

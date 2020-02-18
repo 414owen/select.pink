@@ -102,22 +102,24 @@ const siblingHint = [ "general sibling combinator", "https://developer.mozilla.o
 const typeSelectors = [ "type selectors", "https://developer.mozilla.org/en-US/docs/Web/CSS/Type_selectors" ];
 const idSelectorHint = [ "id selectors", "https://developer.mozilla.org/en-US/docs/Web/CSS/ID_selectors" ];
 
-const childSelectors = [ ":nth-child", ":first-child", ":last-child", ":nth-child" ];
+const childSelectors = [ ":nth-child", ":first-child", ":last-child" ];
 
 const levels =
   // span
   [ { description: "turn the white box pink"
+    , blacklist: childSelectors
     , topology: [ {}, { el: "span", target: true } ]
     , references: [ typeSelectors ]
     }
   // div
   , { description: "turn the white boxes pink"
+    , blacklist: childSelectors
     , topology: [ { target: true }, { el: "span" }, { target: true } ]
     , references: [ typeSelectors ]
     }
   // #alice
   , { description: "use the id"
-    , topology: { sub: { "class": "alice", target: true, sub: {} } }
+    , topology: { sub: { id: "alice", target: true, sub: {} } }
     , references: [ idSelectorHint ]
     }
   // .bob
@@ -130,7 +132,7 @@ const levels =
     , blacklist: childSelectors
     , topology: [ { "class": "gum drop" }
                 , { "class":  "gum" }
-                , { sub: { sub: { "class": "drop", sub: {} } } }
+                , { "class": "drop" }
                 ]
     , references: [ classSelectorHint]
     }
@@ -222,6 +224,7 @@ const overlay = q("#overlay");
 const indicator = q("#indicator");
 const description = q("#description");
 const referencesNode = q("#references");
+const errormsg = q("#errormsg");
 
 const MAX_LEVEL_KEY = "max-level";
 
@@ -362,14 +365,31 @@ const getQueryEls = () => {
   )];
 };
 
+const onInvalid = txt => {
+  indicator.className = "error";
+  setDisabled(true, rightArrow);
+  appendChildren([ crText(txt) ], emptyEl(errormsg));
+};
+
+const getBlacklisted = () => (levels[levelNum - 1].blacklist || []).filter(el => input.value.indexOf(el) >= 0);
+
 const onInputChange = () => {
   clearMatchColours();
+  emptyEl(errormsg);
+  const blacklisted = getBlacklisted();
+  if (blacklisted.length > 0) {
+    let str;
+    if (blacklisted.length === 1) str = `${blacklisted[0]} is`;
+    else if (blacklisted.length  === 2) str = `${blacklisted[0]} and ${blacklisted[1]} are`
+    else str = `${[blacklisted.slice(0, blacklisted.length - 1).join(", "), last(blacklisted)].join(", and ")} are`;
+    onInvalid(`${str} fobidden on this level`);
+    return;
+  }
   let els;
   try {
     [els, hls] = getQueryEls();
   } catch(e) {
-    indicator.className = "error";
-    setDisabled(true, rightArrow);
+    onInvalid("this query is invalid");
     return;
   }
   colourMatches(hls);
