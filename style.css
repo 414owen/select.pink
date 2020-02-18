@@ -232,7 +232,7 @@ body.won > #main {
   animation: shake 3s infinite;
 }
 
-details {
+details > summary {
   cursor: pointer;
 }
 
