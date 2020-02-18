@@ -14,18 +14,26 @@
     </g>
   </svg>
   <div id="main">
-    <div id="selector-input" contenteditable="true" placeholder="eg. div > #hello ~ .world" oninput="onInputChange(); trim(event)"></div>
-    <div class="line-space"></div>
-    <div id="explanation" class="text-center">turn the white box pink</div>
+    <input id="selector-input" type="text" placeholder="eg. div > .yes" oninput="onInputChange()"></input>
+    <div id="indicator">
+      <div id="neutral"></div>
+      <div id="error"></div>
+      <div id="success"></div>
+    </div>
+    <div id="description" class="text-center"></div>
     <div id="sandbox-container">
       <a href="#0" class="paginator left" onclick="changePage(-1)">«</a>
       <div id="sandbox" class="overlay-container">
-        <div id="overlay" class="overlay"></div>
-        <div id="underlay" class="DO_NOT_OPEN"></div>
+        <div id="overlay"></div>
+        <div id="underlay"></div>
       </div>
       <a href="#1" class="paginator right" onclick="changePage(1)">»</a>
     </div>
+    <details>
+      <summary>references</summary>
+      <div id="references"></div>
+    </details>
   </div>
-  <script src="./learn.js"></script>
+  <script src="./select.pink.js"></script>
 </body>
 </html>

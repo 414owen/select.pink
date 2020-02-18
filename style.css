@@ -7,12 +7,13 @@ a {
 }
 
 ::placeholder {
-  color: #aaa;
+  color: #555;
 }
   
 * {
   color: #fff;
   font-family: Monospace;
+  box-sizing: border-box;
 }
 
 html, body {
@@ -26,27 +27,62 @@ html, body {
   margin: 0 auto;
 }
 
-#selector-input:empty:before {
-  content: attr(placeholder);
-  color: gray;
-  background-color: transparent;
+#selector-input.disabled {
+  pointer-events: none;
+  opacity: 0.5;
 }
 
 #selector-input {
+  width: 100%;
   cursor: text;
   font-size: 40px;
   padding: 20px;
   vertical-align: middle;
   text-align: center;
+  display: flex;
+  background-color: rgba(0,0,0,0);
+  border: none;
 }
 
-#explanation {
+#description {
   margin-top: 20px;
 }
 
-.line-space {
+#indicator {
   height: 2px;
+  position: relative;
+}
+
+#neutral {
   background: radial-gradient(circle, rgba(255,255,255,1) 0%, rgba(255,255,255,0.2) 40%, rgba(0,0,0,0) 90%);
+}
+
+#error {
+  background: radial-gradient(circle, rgba(255,130,130,1) 0%, rgba(255,255,255,0.2) 40%, rgba(0,0,0,0) 90%);
+}
+
+#success {
+  background: radial-gradient(circle, rgba(120,210,150,1) 0%, rgba(255,255,255,0.2) 40%, rgba(0,0,0,0) 90%);
+}
+
+#indicator > * {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  transition: opacity 0.3s linear;
+
+}
+
+#indicator:not(.neutral) > #neutral {
+  opacity: 0;
+}
+
+#indicator:not(.success) > #success {
+  opacity: 0;
+}
+
+#indicator:not(.error) > #error {
+  opacity: 0;
 }
 
 .text-center {
@@ -59,10 +95,15 @@ html, body {
 
 .paginator {
   margin: 20px;
+  user-select: none;
+}
+
+.paginator, #selector-input {
+  transition: opacity 0.5s;
 }
 
 body:not(.debug) .paginator.disabled {
-  color: #222;
+  opacity: 0.2;
   pointer-events: none;
 }
 
@@ -70,12 +111,18 @@ body:not(.debug) .paginator.disabled {
   position: relative;
 }
 
-.overlay {
+.hint {
+  background-color: transparent !important;
   position: absolute;
+  margin-top: -16px;
+  width: 100%;
+
 }
 
-.hint, #overlay {
-  background-color: transparent !important;
+#overlay {
+  position: absolute;
+  opacity: 0;
+  z-index: 10;
 }
 
 #sandbox-container {
@@ -85,40 +132,36 @@ body:not(.debug) .paginator.disabled {
 
 #sandbox {
   margin: 0 auto;
-  margin-top: 10px;
+  margin-top: 4px;
 }
 
-.hint {
-  position: absolute;
-}
-
-#sandbox > * :not(.hint) {
-  /* background-color: #000; */
+#sandbox > * :not(.hint):not(.hint2) {
+  position: relative;
   border: 1px solid #aaa;
-  min-width: 100px;
+  min-width: 80px;
   min-height: 50px;
-  margin: 40px;
-  display: inline-block;
+  margin: 16px;
+  padding: 16px;
   transition: background-color 0.5s linear;
+}
+
+#sandbox > * :not(.hint):not(.hint2):not(.target):not(.selected) {
+  background-color: #000;
 }
 
 #sandbox > * > * {
   margin: 10px !important;
 }
 
-#underlay :not(.hint) {
-  background-color: #000;
-}
-
-#overlay .selected {
- background-color: rgba(255, 132, 224, 0.5);
-}
-
 #underlay .target {
   background-color: #fff;
 }
 
-#sandbox > * {
+#underlay .selected {
+ background-color: #d486ff;
+}
+
+#sandbox :not(.hint):not(.hint2) {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
@@ -130,6 +173,7 @@ pre {
 
 .target > .hint {
   color: #000;
+  width: 100%;
 }
 
 #win {
@@ -148,17 +192,50 @@ body.won > #win {
 
 body.won > #main {
   filter: brightness(50%);
-};
+}
 
 @keyframes shake {
   0% { transform: rotate(0deg); }
-  80% { transform: rotate(0deg); }
-  85% { transform: rotate(50deg); }
-  95% { transform: rotate(-5deg); }
+  85% { transform: rotate(0deg); }
+  88% { transform: rotate(5deg); }
+  91% { transform: rotate(-5deg); }
+  94% { transform: rotate(5deg); }
+  97% { transform: rotate(-5deg); }
   100% { transform: rotate(0deg); }
 }
 
-.shiny {
+@keyframes fadein {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeout {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.fadein, .fadeout {
+  animation-duration: 0.5s;
+  animation-fill-mode: both;
+  animation-timing-function: linear;
+}
+
+.fadeout {
+  animation-name: fadeout;
+}
+
+.fadein {
+  animation-name: fadein;
+}
+
+.paginator.right:not(.disabled) {
   animation: shake 3s infinite;
-  display: inline-block;
+}
+
+details {
+  cursor: pointer;
+}
+
+#references {
+  margin-left: 40px;
 }
