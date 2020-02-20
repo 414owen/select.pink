@@ -1,15 +1,26 @@
+// @license magnet:?xt=urn:btih:1f739d935676111cfff4b4693e3816e664797050&dn=gpl-3.0.txt GPL-v3-or-Later
+
+// Copyright (C) 2020 Owen Shepherd
+
+// This code is intentionally left unminified.
+// It might be worth avoiding if you don't like spoilers.
+
 // Constants
 
 const REMOVE_OLD = true;
 const VERSION = "0.3.4";
 const MAX_LEVEL_KEY = "max-level";
 const VERSION_KEY = "pink.version";
+const SUCCESS = "success";
+const ERROR = "error";
+const NEUTRAL = "neutral";
+const STATUSES = [ERROR, SUCCESS, NEUTRAL];
 
 // DOM search
 
 const q = (query, el = document) => el.querySelector(query);
 const qa = (query, el = document) => Array.from(el.querySelectorAll(query));
-const parents = el => produce(el, select("parentNode"));
+// const parents = el => produce(el, select("parentNode"));
 const domInd = el => [...el.parentNode.childNodes].indexOf(el);
 
 // DOM nodes
@@ -17,13 +28,11 @@ const domInd = el => [...el.parentNode.childNodes].indexOf(el);
 const leftArrow = q(".paginator.left");
 const rightArrow = q(".paginator.right");
 const input = q("#selector-input");
-const css = q("#interactive-css");
 const underlay = q("#underlay");
 const overlay = q("#overlay");
-const indicator = q("#indicator");
+const main = q("#main");
 const description = q("#description");
 const referencesNode = q("#references");
-const errormsg = q("#errormsg");
 
 // References
 
@@ -35,62 +44,72 @@ const idSelectorHint = ["id selectors", "https://developer.mozilla.org/en-US/doc
 
 // Blacklisted selector sets
 
-const childSelectors = [":nth-child", ":first-child", ":last-child"];
+const nthinate = str => [":nth", ":first", ":last"].map(prefix => `${prefix}-${str}`);
+const childNodeBlackLisk = nthinate("child");
+const nthTypeBlackList = nthinate("of-type");
+const nthBlackList = [...childNodeBlackLisk, ...nthTypeBlackList];
 
 // Levels
 
 const levels =
   // span
-  [{ description: "turn the white box pink"
-    , blacklist: childSelectors
+  [ { description: "turn the white box pink"
+    , blacklist: nthBlackList
     , topology: [{}, { el: "span", target: true }]
     , references: [typeSelectors]
     }
   // div
   , { description: "turn the white boxes pink"
-    , blacklist: childSelectors
+    , blacklist: nthBlackList
     , topology: [{ target: true }, { el: "span" }, { target: true }]
     , references: [typeSelectors]
     }
   // #alice
   , { description: "use the id"
+    , blacklist: nthBlackList
     , topology: { sub: { id: "alice", target: true, sub: {} } }
     , references: [idSelectorHint]
     }
   // .bob
   , { description: "use the class"
+    , blacklist: nthBlackList
     , topology: { sub: { "class": "bob", target: true, sub: { sub: {} } } }
     , references: [classSelectorHint]
     }
-  // .octo.pus
+  // .gum.drop
   , { description: "use the classes"
-    , blacklist: childSelectors
-    , topology: [{ "class": "gum drop" }
+    , blacklist: nthBlackList
+    , topology: [ { "class": "gum drop", target: true }
                 , { "class":  "gum" }
                 , { "class": "drop" }
-    ]
+                ]
     , references: [classSelectorHint]
     }
   // #pan.cake
-  , { description: ""
-    , blacklist: childSelectors
-    , topology: [{ sub: { "class": "cake" } }
-                , { sub: [{ id: "pan" }
-                         , { id: "pan", "class": "cake", target: true }
+  , { description: "mix & match"
+    , blacklist: nthBlackList
+    , topology: [ { "class": "cake" }
+                , { id: "pan" }
+                , { id: "pan", "class": "cake", target: true }
                 ]
-                  }
-    ]
     , references: [idSelectorHint, classSelectorHint]
     }
   // *>*
   , { description: "select the child node"
+    , blacklist: nthBlackList
     , topology: [{ sub: [{ target: true }] }]
     , references: []
     }
   // *+*
   , { description: "select the (+, ~) sibling"
+    , blacklist: nthBlackList
     , topology: [{ sub: [{ "class": "here", sub: [{}]}, { target: true }] }]
     , references: []
+    }
+  // span:first-of-type
+  , { description: "turn the white boxes pink"
+    , topology: [{ sub: [{}, { el: "span", target: true }] }, { sub: [{ el: "span", target: true }, { el: "span"}] }]
+    , blacklist: [ "," ]
     }
   , { description: "turn the white boxes pink"
     , topology: [{ "class": "here", sub: [{ target: true, sub: [{ sub: [{}] }] }] }]
@@ -123,18 +142,44 @@ const curry = fn => curryN(l(fn), fn);
 const select = curry((k, o) => o[k]);
 const partial = (fn, ...a1) => (...a2) => fn(...a1, ...a2);
 const id = a => a;
+const always = a => () => a;
 const fst = ([a]) => a;
 const snd = ([_, b]) => b;
 const unzip = arr => [arr.map(fst), arr.map(snd)];
 const range = to => Array(to).fill(0).map((_, i) => i);
 const zip = (arr1, arr2) => range(Math.min(l(arr1), l(arr2))).map(i => [arr1[i], arr2[i]]);
-const eq = (a, b) => a === b;
-const uncurry = fn => a => fn(...a);
-const allEq = (arr1, arr2) => l(arr1) === l(arr2) && zip(arr1, arr2).every(uncurry(eq));
-const produce = (el, fn) => el ? [el, ...produce(fn(el), fn)] : [];
-const last = arr => arr[l(arr) - 1];
+const eq = curry((a, b) => a === b);
+const not = a => !a;
 // homogeneous binary operation to vararg fn
 const homBinOp = (fn, identity) => (...args) => args.reduce.apply(args, [fn, identity].filter(id));
+const pipe = homBinOp((f1, f2) => (...args) => f2(f1(...args)))
+const last = arr => arr[l(arr) - 1];
+// const uncurry = fn => a => fn(...a);
+// const allEq = (arr1, arr2) => l(arr1) === l(arr2) && zip(arr1, arr2).every(uncurry(eq));
+// const produce = (el, fn) => el ? [el, ...produce(fn(el), fn)] : [];
+
+// Either
+
+const LEFT = "left";
+const RIGHT = "right";
+const tagIs = target => pipe(select("tag"), eq(target));
+const isLeft = tagIs(LEFT);
+const isRight = tagIs(RIGHT);
+const left = data => ({ tag: LEFT, data });
+const right = data => ({ tag: RIGHT, data });
+
+const catchToRight = (fn, toErr) => {
+  try {
+    return right(fn());
+  } catch (e) {
+    return left(toErr(e));
+  }
+};
+
+const bind = (either, fn) => {
+  if (isRight(either)) return fn(either.data);
+  return either;
+};
 
 // DOM modification
 
@@ -160,8 +205,7 @@ const setDisabled = (disabled, el) => classMod({ disabled }, el);
 
 const crel = (el, atts = {}, children = []) => appendChildren(children, attrs(document.createElement(el), atts));
 const crText = str => document.createTextNode(str);
-const withEvent = curry((ev, el, callback) => id(el, el.addEventListener(ev, callback)));
-const withClick = withEvent("click");
+const withEvent = (ev, el, callback) => id(el, el.addEventListener(ev, callback));
 
 // Sets
 
@@ -185,14 +229,16 @@ const createLevelNodes = (underlay, n) => {
   return [childEls, union(...targetSets)];
 };
 
+const quote = s => `"${s}"`;
+
 const createLevelNode = curry((underlay, { el = "div", sub = [], target, ...attrs }) => {
   const [childEls, subTarget] = createLevelNodes(underlay, sub);
   const layer = crel(el, attrs, [
     ...(underlay ? [crel("pre", {"class": "hint"}, [
-      crText([el, ...Object.entries(attrs).map(([k, v]) => `${k}=${v.indexOf(' ') > 0 ? `"${v}"` : v}`)].join('\n'))
+      crText([el, ...Object.entries(attrs).map(([k, v]) => `${k}=${v.indexOf(' ') > 0 ? quote(v) : v}`)].join('\n'))
    ])] : []),
     ...childEls
- ]);
+  ]);
   if (underlay && target) layer.classList.add("target");
   return [layer, union(target ? [layer] : [], subTarget)];
 });
@@ -203,13 +249,6 @@ const renderLevelInto = (level, el, underlay) => {
   return targets;
 };
 
-const renderLevel = level => {
-  renderLevelInto(level, underlay, true).forEach(el => {
-    el.classList.add("target");
-  });
-  return renderLevelInto(level, overlay);
-};
-
 const versionStored = localStorage.getItem(VERSION_KEY);
 if (REMOVE_OLD && versionStored !== VERSION)
   [MAX_LEVEL_KEY, ...range(levelAmt).map(a => `ans-${a + 1}`)].forEach(k => {
@@ -217,6 +256,7 @@ if (REMOVE_OLD && versionStored !== VERSION)
   });
 localStorage.setItem(VERSION_KEY, VERSION);
 const parseLevel = s => Math.max(Math.min(parseInt(s, 10) || 1, levelAmt), 1);
+
 let maxLevel = Math.min(levelAmt, parseLevel(localStorage.getItem(MAX_LEVEL_KEY)));
 let levelNum = Math.min(maxLevel, parseLevel(location.hash.slice(1)));
 location.hash = levelNum;
@@ -227,6 +267,8 @@ const paginate = () => {
   rightArrow.href = `#${levelNum + 1}`;
   leftArrow.href = `#${levelNum - 1}`;
 };
+
+const level = () => levels[levelNum - 1];
 
 const disablePagination = to => {
   setDisabled(to, leftArrow);
@@ -243,11 +285,18 @@ const fade = (classes, delay) =>
 const toReferences = references => references.map(([text, href]) =>
   crel("li", {}, [crel("a", { href, target: "_blank" }, [crText(text)])]));
 
-const level = () => {
-  const { description: txt, topology, references } = levels[levelNum - 1];
+const renderDescription = txt => {
+  if ((description.childNodes[0] || {}).data === txt) return;
   appendChildren([crText(txt)], emptyEl(description));
+};
+
+const renderLevel = () => {
+  const { __description, topology, references = [] } = level();
   appendChildren(toReferences(references), emptyEl(referencesNode));
-  target = renderLevel(topology);
+  renderLevelInto(topology, underlay, true).forEach(el => {
+    el.classList.add("target");
+  });
+  target = renderLevelInto(topology, overlay);
   input.value = localStorage.getItem(`ans-${levelNum}` || "");
   onInputChange();
   paginate();
@@ -258,17 +307,12 @@ const level = () => {
   });
 };
 
-const clearInput = () => {
-  input.value = "";
-  indicator.className = "neutral";
-};
-
 const changePage = n => {
   levelNum += n;
   location.hash = levelNum;
   setDisabled(true, input);
   disablePagination(true);
-  fade({fadeout: true, fadein: false}, 0).then(level)
+  fade({fadeout: true, fadein: false}, 0).then(renderLevel)
 };
 
 const unlockLevel = () => {
@@ -282,7 +326,7 @@ const win = () => {
 };
 
 const onComplete = () => {
-  indicator.className = "success";
+  indicate(SUCCESS);
   localStorage.setItem(`ans-${levelNum}`, input.value);
   if (levelNum === levelAmt) win();
   else unlockLevel();
@@ -299,9 +343,6 @@ const colourMatches = els => {
     el.classList.add("selected");
   });
 };
-
-const whitespaceRegex = /^\s+$/;
-const isWhitespace = c => whitespaceRegex.test(c);
 
 function* splitCommas(pairs, q) {
   let res = '';
@@ -321,12 +362,16 @@ function* splitCommas(pairs, q) {
   yield res;
 }
 
+const addQueryRoot = part => {
+  const p = part.trim();
+  if (">+~".indexOf(p[0]) >= 0) throw new Error("Selections from root aren't allowed");
+  return `#overlay ${p}`;
+};
+
+const bracketMatches = { '[': ']', '(': ')' };
+
 const addQueryRoots = query =>
-  `${[...splitCommas({ '[': ']', '(': ')' }, query)].map(part => {
-    const p = part.trim();
-    if (">+~".indexOf(p[0]) >= 0) throw new Error("Selections from root aren't allowed");
-    return `#overlay ${p}`;
-  }).join(", ")}`;
+  [...splitCommas(bracketMatches, query)].map(addQueryRoot).join(", ");
 
 const toPath = el => {
   const res = [];
@@ -353,42 +398,56 @@ const getQueryEls = () => {
   )];
 };
 
+const indicate = str => {
+  STATUSES.filter(pipe(eq(str), not)).forEach(c => {
+    main.classList.remove(c);
+  });
+  main.classList.add(str);
+};
+
 const onInvalid = txt => {
-  indicator.className = "error";
+  indicate(ERROR);
   setDisabled(true, rightArrow);
   maxLevel = levelNum;
   localStorage.setItem(MAX_LEVEL_KEY, levelNum);
-  appendChildren([crText(txt)], emptyEl(errormsg));
+  renderDescription(txt);
 };
 
-const getBlacklisted = () => (levels[levelNum - 1].blacklist || []).filter(el => input.value.indexOf(el) >= 0);
+const getBlacklisted = () => (level().blacklist || []).filter(el => input.value.indexOf(el) >= 0);
+
+const conjugateBlacklist = blacklisted => {
+  if (l(blacklisted) === 1) return `${blacklisted[0]} is`;
+  if (l(blacklisted)  === 2) return `${blacklisted[0]} and ${blacklisted[1]} are`;
+  return `${[blacklisted.slice(0, l(blacklisted) - 1).join(", "), last(blacklisted)].join(", and ")} are`;
+};
+
+const getBlacklistResult = () => {
+  const blacklisted = getBlacklisted();
+  if (l(blacklisted) > 0) return left(`${conjugateBlacklist(blacklisted)} fobidden on this level`);
+  return right(null);
+};
+
+const getQueryResult = () => bind(getBlacklistResult(), partial(catchToRight, getQueryEls, always("invalid selector")));
 
 const onInputChange = () => {
-  clearMatchColours();
-  emptyEl(errormsg);
-  const blacklisted = getBlacklisted();
-  if (l(blacklisted) > 0) {
-    let str;
-    if (l(blacklisted) === 1) str = `${blacklisted[0]} is`;
-    else if (l(blacklisted)  === 2) str = `${blacklisted[0]} and ${blacklisted[1]} are`
-    else str = `${[blacklisted.slice(0, l(blacklisted) - 1).join(", "), last(blacklisted)].join(", and ")} are`;
-    onInvalid(`${str} fobidden on this level`);
-    return;
-  }
-  let els;
-  try {
-    [els, hls] = getQueryEls();
-  } catch(e) {
-    onInvalid("this query is invalid");
-    return;
-  }
-  colourMatches(hls);
-  if (symmetricDifference(new Set(els), target).size === 0) {
-    onComplete();
-    setDisabled(false, rightArrow);
-  } else {
-    setDisabled(true, rightArrow);
-    indicator.className = "neutral";
+  const { tag, data } = getQueryResult();
+  switch (tag) {
+    case LEFT:
+      onInvalid(data);
+      break;
+    case RIGHT:
+      renderDescription(level().description);
+      clearMatchColours();
+      const [els, hls] = data;
+      colourMatches(hls);
+      if (symmetricDifference(new Set(els), target).size === 0) {
+        onComplete();
+        setDisabled(false, rightArrow);
+      } else {
+        indicate(NEUTRAL);
+        setDisabled(true, rightArrow);
+      }
+      break;
   }
 };
 
@@ -396,5 +455,6 @@ withEvent("keydown", input, e => {
   if (e.key === "Enter" && levelNum < maxLevel) changePage(1);
 });
 
-level();
+renderLevel();
 onInputChange();
+// @license-end
