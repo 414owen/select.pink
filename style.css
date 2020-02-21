@@ -243,6 +243,8 @@ details > summary {
   display: inline-block;
 }
 
-.gum.drop {
+.gum.drop,
+[data-answer]
+{
   width: 140px;
 }

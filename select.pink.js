@@ -8,13 +8,47 @@
 // Constants
 
 const REMOVE_OLD = true;
-const VERSION = "0.3.4";
+const VERSION = "0.3.5";
 const MAX_LEVEL_KEY = "max-level";
 const VERSION_KEY = "pink.version";
 const SUCCESS = "success";
 const ERROR = "error";
 const NEUTRAL = "neutral";
 const STATUSES = [ERROR, SUCCESS, NEUTRAL];
+
+// Functional
+
+const l = a => a.length;
+const curryN = (n, fn) => (...a) => l(a) >= n ? fn(...a) : curryN(n - l(a), partial(fn, ...a));
+const curry = fn => curryN(l(fn), fn);
+const select = curry((k, o) => o[k]);
+const partial = (fn, ...a1) => (...a2) => fn(...a1, ...a2);
+const id = a => a;
+const always = a => () => a;
+const fst = ([a]) => a;
+const snd = ([_, b]) => b;
+const unzip = arr => [arr.map(fst), arr.map(snd)];
+const range = to => Array(to).fill(0).map((_, i) => i);
+const zip = (arr1, arr2) => range(Math.min(l(arr1), l(arr2))).map(i => [arr1[i], arr2[i]]);
+const eq = curry((a, b) => a === b);
+const not = a => !a;
+// homogeneous binary operation to vararg fn
+const homBinOp = (fn, identity) => (...args) => args.reduce.apply(args, [fn, identity].filter(id));
+const pipe = homBinOp((f1, f2) => (...args) => f2(f1(...args)))
+const last = arr => arr[l(arr) - 1];
+const entries = o => Object.entries(o);
+const mappedEntries = (o, fn) => entries(o).map(fn);
+const map = curry((fn, arr) => arr.map(fn));
+const adjust = curry((fn, obj, k) => ({ ...obj, [k]: fn(obj[k]) }));
+const def = curry((d, actual) => actual || d);
+const defArr = def([]);
+const cons = curry((el, arr) => [el, ...arr]);
+const groupBy = curry((project, arr) => arr.reduce((acc, el) => adjust(pipe(defArr, cons(el)), acc, project(el)), {}));
+const dropParam = fn => (__, ...args) => fn(...args);
+const contains = (el, a) => a.indexOf(el) >= 0;
+// const uncurry = fn => a => fn(...a);
+// const allEq = (arr1, arr2) => l(arr1) === l(arr2) && zip(arr1, arr2).every(uncurry(eq));
+// const produce = (el, fn) => el ? [el, ...produce(fn(el), fn)] : [];
 
 // DOM search
 
@@ -39,12 +73,39 @@ const referencesNode = q("#references");
 const classSelectorHint = ["class selectors", "https://developer.mozilla.org/en-US/docs/Web/CSS/Class_selectors"];
 const adjacentSiblingSelectorHint = ["adjacent sibling combinator", "https://developer.mozilla.org/en-US/docs/Web/CSS/Adjacent_sibling_combinator"];
 const siblingHint = ["general sibling combinator", "https://developer.mozilla.org/en-US/docs/Web/CSS/General_sibling_combinator"];
-const typeSelectors = ["type selectors", "https://developer.mozilla.org/en-US/docs/Web/CSS/Type_selectors"];
+const typeSelectorsHint = ["type selectors", "https://developer.mozilla.org/en-US/docs/Web/CSS/Type_selectors"];
+const firstOfTypeHint = ["first of type selector", "https://developer.mozilla.org/en-US/docs/Web/CSS/:first-of-type"];
+const nthOfTypeHint = ["nth of type selector", "https://developer.mozilla.org/en-US/docs/Web/CSS/:nth-of-type"];
+const nthLastOfTypeHint = ["nth last of type selector", "https://developer.mozilla.org/en-US/docs/Web/CSS/:nth-last-of-type"];
+const firstChildHint = ["first child selector", "https://developer.mozilla.org/en-US/docs/Web/CSS/:first-child"];
+const nthChildHint = ["nth child selector", "https://developer.mozilla.org/en-US/docs/Web/CSS/:nth-child"];
+const nthLastChildHint = ["nth last child selector", "https://developer.mozilla.org/en-US/docs/Web/CSS/:nth-last-child"];
 const idSelectorHint = ["id selectors", "https://developer.mozilla.org/en-US/docs/Web/CSS/ID_selectors"];
+const attributeSelectorHint = ["attribute selector", "https://developer.mozilla.org/en-US/docs/Web/CSS/Attribute_selectors"];
+
+// Split query on root-level commas
+
+function* splitCommas(q, throws = true, pairs = { '[': ']', '(': ')' }) {
+  let ind = 0, stack = [], c = q[0];
+  for (let i = 0; i < l(q); i++, c = q[i]) {
+    if (pairs[c]) stack.push(pairs[c]);
+    if (l(stack) > 0 && last(stack) === c) stack.pop();
+    if (l(stack) !== 0 || c !== ',') continue;
+    yield q.slice(ind, i);
+    ind = i + 1;
+  }
+  if (throws && l(stack) > 0) throw new SyntaxError(`Expected '${last(stack)}'`);
+  yield q.slice(ind);
+}
 
 // Blacklisted selector sets
 
-const nthinate = str => [":nth", ":first", ":last"].map(prefix => `${prefix}-${str}`);
+const typeBlacklister = curry((type, txt, test = contains) => ({ txt, type, test }));
+const selectorBlacklist = typeBlacklister("selector");
+const nthinate = str => [":nth", ":nth-last", ":first", ":last"].map(prefix => selectorBlacklist(`${prefix}-${str}`));
+const combinatorBlacklist = typeBlacklister("combinator");
+const containsCommaCombinator = str => l([...splitCommas(str, false)]) > 1;
+const commaBlacklist = combinatorBlacklist(",", dropParam(containsCommaCombinator));
 const childNodeBlackLisk = nthinate("child");
 const nthTypeBlackList = nthinate("of-type");
 const nthBlackList = [...childNodeBlackLisk, ...nthTypeBlackList];
@@ -54,15 +115,15 @@ const nthBlackList = [...childNodeBlackLisk, ...nthTypeBlackList];
 const levels =
   // span
   [ { description: "turn the white box pink"
-    , blacklist: nthBlackList
+    , blacklist: [...nthBlackList, commaBlacklist]
     , topology: [{}, { el: "span", target: true }]
-    , references: [typeSelectors]
+    , references: [typeSelectorsHint]
     }
   // div
   , { description: "turn the white boxes pink"
     , blacklist: nthBlackList
     , topology: [{ target: true }, { el: "span" }, { target: true }]
-    , references: [typeSelectors]
+    , references: [typeSelectorsHint]
     }
   // #alice
   , { description: "use the id"
@@ -94,31 +155,50 @@ const levels =
                 ]
     , references: [idSelectorHint, classSelectorHint]
     }
+  // [data-answer]
+  , { description: "use the attribute"
+    , topology: [{ sub: [{ "data-answer": "42", target: true }] }, { sub: { sub: {} } }]
+    , references: [attributeSelectorHint]
+    }
   // *>*
   , { description: "select the child node"
     , blacklist: nthBlackList
-    , topology: [{ sub: [{ target: true }] }]
+    , topology: [{ sub: { target: true } }]
     , references: []
     }
   // *+*
   , { description: "select the (+, ~) sibling"
     , blacklist: nthBlackList
-    , topology: [{ sub: [{ "class": "here", sub: [{}]}, { target: true }] }]
+    , topology: [{ sub: [{ "class": "here" }, { target: true }] }]
     , references: []
     }
-  // span:first-of-type
+  // [data-answer]
+  , { description: "use the attribute"
+    , topology: [{ sub: [{ "data-answer": "42", target: true }] }, { sub: { sub: {} } }]
+    , references: [attributeSelectorHint]
+    }
+  // :nth-child(2)
   , { description: "turn the white boxes pink"
+    , blacklist: nthTypeBlackList
+    , topology: [{}, { target: true }, {}]
+    , references: [nthChildHint]
+    }
+  // :last-child | nth-child(2)
+  , { description: "turn the white boxes pink"
+    , blacklist: nthTypeBlackList
+    , topology: [{}, { target: true }, {}]
+    , references: [firstChildHint, nthChildHint, nthLastChildHint]
+    }
+  // span:first-of-type
+  , { description: "select"
     , topology: [{ sub: [{}, { el: "span", target: true }] }, { sub: [{ el: "span", target: true }, { el: "span"}] }]
-    , blacklist: [ "," ]
+    , blacklist: [commaBlacklist]
     }
   , { description: "turn the white boxes pink"
     , topology: [{ "class": "here", sub: [{ target: true, sub: [{ sub: [{}] }] }] }]
     }
   , { description: "turn the white boxes pink"
     , topology: [{}, { target: true }]
-    }
-  , { description: "turn the white boxes pink"
-    , topology: [{ target: true }, {}]
     }
   , { description: "turn the white boxes pink"
     , topology: [{}, { target: true }, {}]
@@ -132,31 +212,7 @@ const levels =
   , { description: "turn the white boxes pink"
     , topology: [{ sub: [{ target: true }, {}] }, {}, {}]
     }
-  ]
-
-// Functional
-
-const l = a => a.length;
-const curryN = (n, fn) => (...a) => l(a) >= n ? fn(...a) : curryN(n - l(a), partial(fn, ...a));
-const curry = fn => curryN(l(fn), fn);
-const select = curry((k, o) => o[k]);
-const partial = (fn, ...a1) => (...a2) => fn(...a1, ...a2);
-const id = a => a;
-const always = a => () => a;
-const fst = ([a]) => a;
-const snd = ([_, b]) => b;
-const unzip = arr => [arr.map(fst), arr.map(snd)];
-const range = to => Array(to).fill(0).map((_, i) => i);
-const zip = (arr1, arr2) => range(Math.min(l(arr1), l(arr2))).map(i => [arr1[i], arr2[i]]);
-const eq = curry((a, b) => a === b);
-const not = a => !a;
-// homogeneous binary operation to vararg fn
-const homBinOp = (fn, identity) => (...args) => args.reduce.apply(args, [fn, identity].filter(id));
-const pipe = homBinOp((f1, f2) => (...args) => f2(f1(...args)))
-const last = arr => arr[l(arr) - 1];
-// const uncurry = fn => a => fn(...a);
-// const allEq = (arr1, arr2) => l(arr1) === l(arr2) && zip(arr1, arr2).every(uncurry(eq));
-// const produce = (el, fn) => el ? [el, ...produce(fn(el), fn)] : [];
+  ];
 
 // Either
 
@@ -168,7 +224,8 @@ const isRight = tagIs(RIGHT);
 const left = data => ({ tag: LEFT, data });
 const right = data => ({ tag: RIGHT, data });
 
-const catchToRight = (fn, toErr) => {
+// exceptions -> eithers
+const catchToRight = (fn, toErr = id) => {
   try {
     return right(fn());
   } catch (e) {
@@ -199,7 +256,10 @@ const classMod = (classes, el) =>
     ([k, v]) => el.classList[v ? "add" : "remove"](k)
   ));
 
-const setDisabled = (disabled, el) => classMod({ disabled }, el);
+const setDisabled = (disabled, el) => {
+  el.disabled = disabled;
+  return classMod({ disabled }, el);
+};
 
 // DOM creation
 
@@ -229,14 +289,21 @@ const createLevelNodes = (underlay, n) => {
   return [childEls, union(...targetSets)];
 };
 
-const quote = s => `"${s}"`;
+const quote = (c, s) => `${c}${s}${c}`;
+const needsQuoteReg = /(\s|,)/;
+const needsQuoting = s => needsQuoteReg.test(s);
+const withQuotes = curry((c, s) => needsQuoting(s) ? quote(c, s) : s);
+const toAttrHintText = ([k, v]) => `${k}=${withQuotes('"', v)}`;
+const toHintText = (el, attrs) => crText([ el, ...mappedEntries(attrs, toAttrHintText) ].join('\n'));
+const toHint = (el, attrs) =>
+  crel("pre", {"class": "hint"}, [
+    toHintText(el, attrs)
+  ]);
 
 const createLevelNode = curry((underlay, { el = "div", sub = [], target, ...attrs }) => {
   const [childEls, subTarget] = createLevelNodes(underlay, sub);
   const layer = crel(el, attrs, [
-    ...(underlay ? [crel("pre", {"class": "hint"}, [
-      crText([el, ...Object.entries(attrs).map(([k, v]) => `${k}=${v.indexOf(' ') > 0 ? quote(v) : v}`)].join('\n'))
-   ])] : []),
+    ...(underlay ? [toHint(el, attrs)] : []),
     ...childEls
   ]);
   if (underlay && target) layer.classList.add("target");
@@ -282,7 +349,7 @@ const fade = (classes, delay) =>
     withEvent("animationend", el, res)
   })));
 
-const toReferences = references => references.map(([text, href]) =>
+const toReferences = map(([text, href]) =>
   crel("li", {}, [crel("a", { href, target: "_blank" }, [crText(text)])]));
 
 const renderDescription = txt => {
@@ -327,6 +394,7 @@ const win = () => {
 
 const onComplete = () => {
   indicate(SUCCESS);
+  setDisabled(false, rightArrow);
   localStorage.setItem(`ans-${levelNum}`, input.value);
   if (levelNum === levelAmt) win();
   else unlockLevel();
@@ -344,34 +412,14 @@ const colourMatches = els => {
   });
 };
 
-function* splitCommas(pairs, q) {
-  let res = '';
-  const stack = [];
-  for (let i = 0; i < l(q); i++) {
-    const c = q[i];
-    if (pairs[c]) stack.push(pairs[c]);
-    if (l(stack) > 0 && last(stack) === c) stack.pop();
-    if (l(stack) === 0 && c === ',') {
-      yield res;
-      res = '';
-    } else {
-      res += c;
-    }
-  }
-  if (l(stack) > 0) throw new SyntaxError(`Expected '${last(stack)}'`);
-  yield res;
-}
-
 const addQueryRoot = part => {
   const p = part.trim();
-  if (">+~".indexOf(p[0]) >= 0) throw new Error("Selections from root aren't allowed");
+  if (contains(p[0], ">+~")) throw new Error("Selections from root aren't allowed");
   return `#overlay ${p}`;
 };
 
-const bracketMatches = { '[': ']', '(': ')' };
-
 const addQueryRoots = query =>
-  [...splitCommas(bracketMatches, query)].map(addQueryRoot).join(", ");
+  Array.from(splitCommas(query), addQueryRoot).join(", ");
 
 const toPath = el => {
   const res = [];
@@ -390,12 +438,12 @@ const followPath = curry((node, path) => {
   return res;
 });
 
+// skips hints
+const offsetPath = map((n, i) => i === 0 ? n : n + 1);
+
 const getQueryEls = () => {
-  const paths = qa(`${addQueryRoots(input.value.trim())}`, overlay)
-    .map(el => toPath(el));
-  return [paths.map(followPath(overlay)), paths.map(path =>
-    followPath(underlay, path.map((n, i) => i === 0 ? n : n + 1))
-  )];
+  const paths = qa(`${addQueryRoots(input.value.trim())}`, overlay).map(el => toPath(el));
+  return [paths.map(followPath(overlay)), paths.map(pipe(offsetPath, followPath(underlay)))];
 };
 
 const indicate = str => {
@@ -413,42 +461,50 @@ const onInvalid = txt => {
   renderDescription(txt);
 };
 
-const getBlacklisted = () => (level().blacklist || []).filter(el => input.value.indexOf(el) >= 0);
+const getBlacklisted = () => (level().blacklist || []).filter(({ txt, test }) => test(txt, input.value));
+
+const conjugateGroup = (type, elems) => {
+  if (l(elems) === 1) return `the ${elems[0]} ${type}`;
+  if (l(elems) === 2) {
+    return `the ${elems[0]} and ${elems[1]} ${type}s`;
+  }
+  return `${[elems.slice(0, l(elems) - 1).join(", "), last(elems)].join(", and ")} ${type}s`;
+};
 
 const conjugateBlacklist = blacklisted => {
-  if (l(blacklisted) === 1) return `${blacklisted[0]} is`;
-  if (l(blacklisted)  === 2) return `${blacklisted[0]} and ${blacklisted[1]} are`;
-  return `${[blacklisted.slice(0, l(blacklisted) - 1).join(", "), last(blacklisted)].join(", and ")} are`;
+  const groups = groupBy(select("type"), blacklisted);
+  return entries(groups)
+    .sort(([_, a], [__, b]) => l(a) - l(b))
+    .map(([k, v]) =>
+      conjugateGroup(k, v.map(pipe(select("txt"), withQuotes("'"))))
+    ).join(", and ") + (l(blacklisted) > 1 ? " are" : " is");
 };
 
 const getBlacklistResult = () => {
   const blacklisted = getBlacklisted();
-  if (l(blacklisted) > 0) return left(`${conjugateBlacklist(blacklisted)} fobidden on this level`);
+  if (l(blacklisted) > 0) return left(`${conjugateBlacklist(blacklisted)} forbidden on this level`);
   return right(null);
 };
 
 const getQueryResult = () => bind(getBlacklistResult(), partial(catchToRight, getQueryEls, always("invalid selector")));
 
+const notCompleted = () => {
+  indicate(NEUTRAL);
+  setDisabled(true, rightArrow);
+};
+
+const onValid = ([els, hls]) => {
+  renderDescription(level().description);
+  clearMatchColours();
+  colourMatches(hls);
+  if (symmetricDifference(new Set(els), target).size === 0) onComplete();
+  else notCompleted();
+};
+
 const onInputChange = () => {
   const { tag, data } = getQueryResult();
-  switch (tag) {
-    case LEFT:
-      onInvalid(data);
-      break;
-    case RIGHT:
-      renderDescription(level().description);
-      clearMatchColours();
-      const [els, hls] = data;
-      colourMatches(hls);
-      if (symmetricDifference(new Set(els), target).size === 0) {
-        onComplete();
-        setDisabled(false, rightArrow);
-      } else {
-        indicate(NEUTRAL);
-        setDisabled(true, rightArrow);
-      }
-      break;
-  }
+  if (tag === LEFT) onInvalid(data);
+  else onValid(data);
 };
 
 withEvent("keydown", input, e => {
@@ -457,4 +513,5 @@ withEvent("keydown", input, e => {
 
 renderLevel();
 onInputChange();
+
 // @license-end
