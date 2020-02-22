@@ -7,14 +7,12 @@
 
 // Constants
 
-const REMOVE_OLD = true;
-const VERSION = "0.3.5";
 const MAX_LEVEL_KEY = "max-level";
-const VERSION_KEY = "pink.version";
 const SUCCESS = "success";
 const ERROR = "error";
 const NEUTRAL = "neutral";
 const STATUSES = [ERROR, SUCCESS, NEUTRAL];
+const FADE_IN_TIME = 1;
 
 // Functional
 
@@ -29,7 +27,7 @@ const fst = ([a]) => a;
 const snd = ([_, b]) => b;
 const unzip = arr => [arr.map(fst), arr.map(snd)];
 const range = to => Array(to).fill(0).map((_, i) => i);
-const zip = (arr1, arr2) => range(Math.min(l(arr1), l(arr2))).map(i => [arr1[i], arr2[i]]);
+// const zip = (arr1, arr2) => range(Math.min(l(arr1), l(arr2))).map(i => [arr1[i], arr2[i]]);
 const eq = curry((a, b) => a === b);
 const not = a => !a;
 // homogeneous binary operation to vararg fn
@@ -45,10 +43,18 @@ const defArr = def([]);
 const cons = curry((el, arr) => [el, ...arr]);
 const groupBy = curry((project, arr) => arr.reduce((acc, el) => adjust(pipe(defArr, cons(el)), acc, project(el)), {}));
 const dropParam = fn => (__, ...args) => fn(...args);
-const contains = (el, a) => a.indexOf(el) >= 0;
+const contains = curry((el, a) => a.indexOf(el) >= 0);
 // const uncurry = fn => a => fn(...a);
 // const allEq = (arr1, arr2) => l(arr1) === l(arr2) && zip(arr1, arr2).every(uncurry(eq));
-// const produce = (el, fn) => el ? [el, ...produce(fn(el), fn)] : [];
+// const produceWhileTruthy = (fn, ind = 0, el = undefined) => {
+//   const res = [];
+//   while (ind === 0 || el) {
+//     res.push(el = fn(ind, el));
+//     ind += 1;
+//   }
+//   return res;
+// };
+// const produce = fn => el ? [el, ...produce(fn(el), fn)] : [];
 
 // DOM search
 
@@ -75,13 +81,21 @@ const adjacentSiblingSelectorHint = ["adjacent sibling combinator", "https://dev
 const siblingHint = ["general sibling combinator", "https://developer.mozilla.org/en-US/docs/Web/CSS/General_sibling_combinator"];
 const typeSelectorsHint = ["type selectors", "https://developer.mozilla.org/en-US/docs/Web/CSS/Type_selectors"];
 const firstOfTypeHint = ["first of type selector", "https://developer.mozilla.org/en-US/docs/Web/CSS/:first-of-type"];
+const lastOfTypeHint = ["last of type selector", "https://developer.mozilla.org/en-US/docs/Web/CSS/:last-of-type"];
 const nthOfTypeHint = ["nth of type selector", "https://developer.mozilla.org/en-US/docs/Web/CSS/:nth-of-type"];
 const nthLastOfTypeHint = ["nth last of type selector", "https://developer.mozilla.org/en-US/docs/Web/CSS/:nth-last-of-type"];
 const firstChildHint = ["first child selector", "https://developer.mozilla.org/en-US/docs/Web/CSS/:first-child"];
+const lastChildHint = ["last child selector", "https://developer.mozilla.org/en-US/docs/Web/CSS/:last-child"];
 const nthChildHint = ["nth child selector", "https://developer.mozilla.org/en-US/docs/Web/CSS/:nth-child"];
 const nthLastChildHint = ["nth last child selector", "https://developer.mozilla.org/en-US/docs/Web/CSS/:nth-last-child"];
 const idSelectorHint = ["id selectors", "https://developer.mozilla.org/en-US/docs/Web/CSS/ID_selectors"];
 const attributeSelectorHint = ["attribute selector", "https://developer.mozilla.org/en-US/docs/Web/CSS/Attribute_selectors"];
+const decendantCombinatorHint = ["decentant combinator", "https://developer.mozilla.org/en-US/docs/Web/CSS/Descendant_combinator"];
+const childCombinatorHint = ["child combinator", "https://developer.mozilla.org/en-US/docs/Web/CSS/Child_combinator"];
+const emptyHint = ["empty selector", "https://developer.mozilla.org/en-US/docs/Web/CSS/:empty"];
+const notHint = ["not combinator", "https://developer.mozilla.org/en-US/docs/Web/CSS/:not"];
+const definedHint = ["defined selector", "https://developer.mozilla.org/en-US/docs/Web/CSS/:defined"];
+const langHint = ["language selector", "https://developer.mozilla.org/en-US/docs/Web/CSS/:lang"];
 
 // Split query on root-level commas
 
@@ -109,36 +123,40 @@ const commaBlacklist = combinatorBlacklist(",", dropParam(containsCommaCombinato
 const childNodeBlackLisk = nthinate("child");
 const nthTypeBlackList = nthinate("of-type");
 const nthBlackList = [...childNodeBlackLisk, ...nthTypeBlackList];
+const emptyBlacklist = selectorBlacklist(":empty");
+const siblingBlacklist = ["+", "~"].map(a => combinatorBlacklist(a));
+const elBlacklist = ["div", "span"].map(a => selectorBlacklist(a));
+const eqBlacklist = combinatorBlacklist("=");
 
 // Levels
 
 const levels =
-  // span
   [ { description: "turn the white box pink"
+    , optimal: "span"
     , blacklist: [...nthBlackList, commaBlacklist]
     , topology: [{}, { el: "span", target: true }]
     , references: [typeSelectorsHint]
     }
-  // div
   , { description: "turn the white boxes pink"
+    , optimal: "div"
     , blacklist: nthBlackList
     , topology: [{ target: true }, { el: "span" }, { target: true }]
     , references: [typeSelectorsHint]
     }
-  // #alice
   , { description: "use the id"
+    , optimal: "#alice"
     , blacklist: nthBlackList
     , topology: { sub: { id: "alice", target: true, sub: {} } }
     , references: [idSelectorHint]
     }
-  // .bob
   , { description: "use the class"
+    , optimal: ".bob"
     , blacklist: nthBlackList
     , topology: { sub: { "class": "bob", target: true, sub: { sub: {} } } }
     , references: [classSelectorHint]
     }
-  // .gum.drop
   , { description: "use the classes"
+    , optimal: ".gum.drop"
     , blacklist: nthBlackList
     , topology: [ { "class": "gum drop", target: true }
                 , { "class":  "gum" }
@@ -146,8 +164,8 @@ const levels =
                 ]
     , references: [classSelectorHint]
     }
-  // #pan.cake
   , { description: "mix & match"
+    , optimal: "#pan.cake"
     , blacklist: nthBlackList
     , topology: [ { "class": "cake" }
                 , { id: "pan" }
@@ -155,63 +173,121 @@ const levels =
                 ]
     , references: [idSelectorHint, classSelectorHint]
     }
-  // [data-answer]
-  , { description: "use the attribute"
-    , topology: [{ sub: [{ "data-answer": "42", target: true }] }, { sub: { sub: {} } }]
-    , references: [attributeSelectorHint]
+  , { description: "select the decendant nodes"
+    , optimal: "*>*"
+    , blacklist: [commaBlacklist, emptyBlacklist]
+    , topology: [{ sub: { target: true, sub: { target: true } } }]
+    , references: [decendantCombinatorHint]
     }
-  // *>*
   , { description: "select the child node"
-    , blacklist: nthBlackList
-    , topology: [{ sub: { target: true } }]
-    , references: []
+    , optimal: "#top>*"
+    , blacklist: [emptyBlacklist]
+    , topology: [{ id: "top", sub: { target: true, sub: { sub: {} } } }]
+    , references: [childCombinatorHint]
     }
-  // *+*
-  , { description: "select the (+, ~) sibling"
-    , blacklist: nthBlackList
-    , topology: [{ sub: [{ "class": "here" }, { target: true }] }]
-    , references: []
+  , { description: "select the siblings"
+    , optimal: ".tilde~*"
+    , topology: [{ sub: [{"class": "tilde"}, { target: true }, { target: true }, { target: true }] }, { sub: [{}, {}, {"class": "tilde"}, {target: true}] }]
+    , references: [siblingHint]
     }
-  // [data-answer]
+  , { description: "select the direct siblings"
+    , optimal: ".here+*"
+    , topology: [{ sub: [{}, { "class": "here" }, { target: true }, { }] }, { sub: [{"class": "here"}, {target: true}] }]
+    , references: [adjacentSiblingSelectorHint]
+    }
   , { description: "use the attribute"
-    , topology: [{ sub: [{ "data-answer": "42", target: true }] }, { sub: { sub: {} } }]
+    , optimal: "[data-answer]"
+    , topology: [{ sub: { "data-answer": "42", target: true } }, { sub: [{ sub: {} }, {}] }]
     , references: [attributeSelectorHint]
     }
-  // :nth-child(2)
-  , { description: "turn the white boxes pink"
-    , blacklist: nthTypeBlackList
+  , { description: "select the first boxes"
+    , optimal: ":first-child"
+    , blacklist: [...nthTypeBlackList, commaBlacklist]
+    , topology: [{ target: true, sub: { target: true } }, { sub: { target: true } }]
+    , references: [firstChildHint, nthChildHint]
+    }
+  , { description: "select the second box"
+    , optimal: ":nth-child(2)"
+    , blacklist: [...nthTypeBlackList, ...siblingBlacklist]
     , topology: [{}, { target: true }, {}]
     , references: [nthChildHint]
     }
-  // :last-child | nth-child(2)
-  , { description: "turn the white boxes pink"
+  , { description: "select the last boxes"
+    , optimal: "*>:last-child"
     , blacklist: nthTypeBlackList
-    , topology: [{}, { target: true }, {}]
-    , references: [firstChildHint, nthChildHint, nthLastChildHint]
+    , topology: [{ sub: [{}, { target: true }] }, { sub: [{}, {}, { target: true }] }]
+    , references: [lastChildHint, nthLastChildHint]
     }
-  // span:first-of-type
-  , { description: "select"
+  , { description: "select the first spans"
+    , optimal: "span:first-of-type"
     , topology: [{ sub: [{}, { el: "span", target: true }] }, { sub: [{ el: "span", target: true }, { el: "span"}] }]
     , blacklist: [commaBlacklist]
+    , references: [firstOfTypeHint, nthOfTypeHint]
     }
-  , { description: "turn the white boxes pink"
-    , topology: [{ "class": "here", sub: [{ target: true, sub: [{ sub: [{}] }] }] }]
+  , { description: "select the empty elements"
+    , optimal: ":empty"
+    , topology: [{ sub: { target: true } }, { sub: [{ sub: { sub: { target: true } } }] }]
+    , references: [emptyHint]
     }
-  , { description: "turn the white boxes pink"
-    , topology: [{}, { target: true }]
+  , { description: "do the opposite"
+    , optimal: ":not(:empty)"
+    , topology: [{ target: true, sub: { target: true, sub: {} } }]
+    , references: [notHint, emptyHint]
     }
-  , { description: "turn the white boxes pink"
-    , topology: [{}, { target: true }, {}]
+  , { description: "10x it"
+    , optimal: "div:not(:last-child)"
+    , topology:
+      [ { el: "span", sub:
+          [ { target: true }
+            , { target: true }
+            , { sub:
+                [ { target: true }
+                , { el: "span"
+                  , sub: {}
+                  }
+                ]
+              }
+           ]
+         }
+      , { target: true }
+      , { target: true }
+      , { target: true }
+      , { target: true }
+      , { target: true }
+      , { target: true }
+      , { target: true }
+      , { target: true }
+      , { el: "test" }
+      , { target: true }
+      , {}
+      ]
+    , references: [notHint, firstChildHint]
     }
-  , { description: "turn the white boxes pink"
-    , topology: [{ target: true, sub: [{}] }]
+  , { description: "lang"
+    , optimal: ":lang(fr)"
+    , blacklist: [eqBlacklist]
+    , topology: [{ sub: { lang: "de"} }, { lang: "fr", target: true }, { sub: { sub: [ { target: true, lang: "fr" }, { lang: "en" }] } }]
+    , references: [langHint]
     }
-  , { description: "turn the white boxes pink"
-    , topology: [{ sub: [{ target: true, sub: [{}] }] }]
-    }
-  , { description: "turn the white boxes pink"
-    , topology: [{ sub: [{ target: true }, {}] }, {}, {}]
-    }
+  // , { description: "do these even exist?"
+  //   , optimal: ":not(:defined)"
+  //   , blacklist: elBlacklist
+  //   , references: [definedHint, notHint]
+  //   , topology: [{ sub:
+  //       [ { target: true, el: "yotta" }
+  //       , { target: true, el: "zetta" }
+  //       , {}
+  //       ]
+  //     }, { sub: { sub:
+  //       [ {}
+  //       , {target: true, el: "muon" }
+  //       , {target: true, el: "tao" }
+  //       , {target: true, el: "charm" }
+  //       , {el: "span" }
+  //       , {target: true, el: "strange" }
+  //       , {target: true, el: "higgs" }
+  //       ] } }]
+  //   }
   ];
 
 // Either
@@ -300,34 +376,61 @@ const toHint = (el, attrs) =>
     toHintText(el, attrs)
   ]);
 
-const createLevelNode = curry((underlay, { el = "div", sub = [], target, ...attrs }) => {
-  const [childEls, subTarget] = createLevelNodes(underlay, sub);
+const createLevelNode = curry((isInderlay, { el = "div", sub = [], target, ...attrs }) => {
+  const [childEls, subTarget] = createLevelNodes(isInderlay, sub);
   const layer = crel(el, attrs, [
-    ...(underlay ? [toHint(el, attrs)] : []),
+    ...(isInderlay ? [toHint(el, attrs)] : []),
     ...childEls
   ]);
-  if (underlay && target) layer.classList.add("target");
+  if (isInderlay && target) layer.classList.add("target");
   return [layer, union(target ? [layer] : [], subTarget)];
 });
 
-const renderLevelInto = (level, el, underlay) => {
-  const [els, targets] = createLevelNodes(underlay, level);
+const renderLevelInto = (level, el, isInderlay) => {
+  const [els, targets] = createLevelNodes(isInderlay, level);
   appendChildren(els, emptyEl(el));
   return targets;
 };
 
-const versionStored = localStorage.getItem(VERSION_KEY);
-if (REMOVE_OLD && versionStored !== VERSION)
-  [MAX_LEVEL_KEY, ...range(levelAmt).map(a => `ans-${a + 1}`)].forEach(k => {
-    localStorage.removeItem(k);
-  });
-localStorage.setItem(VERSION_KEY, VERSION);
 const parseLevel = s => Math.max(Math.min(parseInt(s, 10) || 1, levelAmt), 1);
 
-let maxLevel = Math.min(levelAmt, parseLevel(localStorage.getItem(MAX_LEVEL_KEY)));
-let levelNum = Math.min(maxLevel, parseLevel(location.hash.slice(1)));
+const addQueryRoot = part => {
+  const p = part.trim();
+  if (contains(p[0], ">+~")) throw new Error("Selections from root aren't allowed");
+  return `#overlay ${p}`;
+};
+
+const addQueryRoots = query =>
+  Array.from(splitCommas(query), addQueryRoot).join(", ");
+
+const getQueryEls = (root, query) =>
+  qa(`${addQueryRoots(query).trim()}`, root);
+
+const getBlacklisted = (level, selector) => (level.blacklist || []).filter(({ txt, test }) => test(txt, selector));
+
+const isValidAnswer = (level, selector) => {
+  const root = crel("div", { id: "overlay" });
+  const targets = renderLevelInto(level, root);
+  let els;
+  try {
+    els = getQueryEls(root, selector);
+  } catch (e) {
+    return false;
+  }
+  if (l(getBlacklisted(level, selector)) > 0) return false;
+  return symmetricDifference(new Set(els), targets).size === 0;
+};
+
+let levelNum = parseLevel(location.hash.slice(1));
+for (let i = 1; i < levelNum; i++) {
+  const ans = localStorage.getItem(`ans-${i}`);
+  if (!(ans && isValidAnswer(levels[i - 1].topology, ans))) {
+    levelNum = i;
+    break;
+  }
+}
 location.hash = levelNum;
-let target = null;
+let targets = null;
 
 const paginate = () => {
   setDisabled(levelNum <= 1, leftArrow);
@@ -342,11 +445,30 @@ const disablePagination = to => {
   setDisabled(to, rightArrow);
 };
 
-const fade = (classes, delay) =>
-  Promise.all(qa("#underlay > *").map((el, i) => new Promise(res => {
+const isHint = pipe(
+  select("classList"),
+  Array.from,
+  contains("hint")
+);
+
+function* fadeEls(reverse, roots = qa("#underlay > *", underlay)) {
+  for (let i in roots) {
+    const subs = [...roots[i].childNodes].filter(pipe(isHint, not));
+    if (!reverse) yield roots[i];
+    yield* fadeEls(reverse, subs);
+    if (reverse) yield roots[i];
+  }
+}
+
+const fade = (classes, reverse) =>
+  Promise.all([...fadeEls(reverse)].map((el, i, arr) => new Promise(res => {
+    el.style.animationDuration = `${FADE_IN_TIME / l(arr)}s`;
+    el.style.animationDelay = `${i * FADE_IN_TIME / l(arr)}s`;
     classMod(classes, el);
-    el.style.animationDelay = `${delay * i}s`;
-    withEvent("animationend", el, res)
+    withEvent("animationend", el, e => {
+      res();
+      e.stopPropagation();
+    })
   })));
 
 const toReferences = map(([text, href]) =>
@@ -363,14 +485,16 @@ const renderLevel = () => {
   renderLevelInto(topology, underlay, true).forEach(el => {
     el.classList.add("target");
   });
-  target = renderLevelInto(topology, overlay);
+  targets = renderLevelInto(topology, overlay);
   input.value = localStorage.getItem(`ans-${levelNum}` || "");
-  onInputChange();
-  paginate();
-  return fade({fadein: true, fadeout: false}, 0.2).then(() => {
+  return fade({fadein: true, fadeout: false}).then(() => {
+    [...fadeEls()].forEach(el => {
+      el.classList.remove("fadein");
+    });
+    paginate()
+    onInputChange();
     setDisabled(false, input);
     input.focus();
-    fade({fadeout: false, fadein: false}, 0);
   });
 };
 
@@ -379,13 +503,8 @@ const changePage = n => {
   location.hash = levelNum;
   setDisabled(true, input);
   disablePagination(true);
-  fade({fadeout: true, fadein: false}, 0).then(renderLevel)
-};
-
-const unlockLevel = () => {
-  maxLevel = Math.min(levelNum + 1, levelAmt);
-  localStorage.setItem(MAX_LEVEL_KEY, maxLevel);
-  paginate();
+  if (levelNum > levelAmt) win();
+  else fade({fadeout: true, fadein: false}, true).then(renderLevel)
 };
 
 const win = () => {
@@ -394,10 +513,8 @@ const win = () => {
 
 const onComplete = () => {
   indicate(SUCCESS);
-  setDisabled(false, rightArrow);
   localStorage.setItem(`ans-${levelNum}`, input.value);
-  if (levelNum === levelAmt) win();
-  else unlockLevel();
+  setDisabled(false, rightArrow);
 };
 
 const clearMatchColours = () => {
@@ -411,15 +528,6 @@ const colourMatches = els => {
     el.classList.add("selected");
   });
 };
-
-const addQueryRoot = part => {
-  const p = part.trim();
-  if (contains(p[0], ">+~")) throw new Error("Selections from root aren't allowed");
-  return `#overlay ${p}`;
-};
-
-const addQueryRoots = query =>
-  Array.from(splitCommas(query), addQueryRoot).join(", ");
 
 const toPath = el => {
   const res = [];
@@ -441,8 +549,8 @@ const followPath = curry((node, path) => {
 // skips hints
 const offsetPath = map((n, i) => i === 0 ? n : n + 1);
 
-const getQueryEls = () => {
-  const paths = qa(`${addQueryRoots(input.value.trim())}`, overlay).map(el => toPath(el));
+const getCurrentQueryEls = () => {
+  const paths = getQueryEls(overlay, input.value).map(el => toPath(el));
   return [paths.map(followPath(overlay)), paths.map(pipe(offsetPath, followPath(underlay)))];
 };
 
@@ -456,12 +564,9 @@ const indicate = str => {
 const onInvalid = txt => {
   indicate(ERROR);
   setDisabled(true, rightArrow);
-  maxLevel = levelNum;
   localStorage.setItem(MAX_LEVEL_KEY, levelNum);
   renderDescription(txt);
 };
-
-const getBlacklisted = () => (level().blacklist || []).filter(({ txt, test }) => test(txt, input.value));
 
 const conjugateGroup = (type, elems) => {
   if (l(elems) === 1) return `the ${elems[0]} ${type}`;
@@ -481,12 +586,12 @@ const conjugateBlacklist = blacklisted => {
 };
 
 const getBlacklistResult = () => {
-  const blacklisted = getBlacklisted();
+  const blacklisted = getBlacklisted(level(), input.value);
   if (l(blacklisted) > 0) return left(`${conjugateBlacklist(blacklisted)} forbidden on this level`);
   return right(null);
 };
 
-const getQueryResult = () => bind(getBlacklistResult(), partial(catchToRight, getQueryEls, always("invalid selector")));
+const getQueryResult = () => bind(getBlacklistResult(), partial(catchToRight, getCurrentQueryEls, always("invalid selector")));
 
 const notCompleted = () => {
   indicate(NEUTRAL);
@@ -497,7 +602,7 @@ const onValid = ([els, hls]) => {
   renderDescription(level().description);
   clearMatchColours();
   colourMatches(hls);
-  if (symmetricDifference(new Set(els), target).size === 0) onComplete();
+  if (symmetricDifference(new Set(els), targets).size === 0) onComplete();
   else notCompleted();
 };
 
@@ -508,7 +613,8 @@ const onInputChange = () => {
 };
 
 withEvent("keydown", input, e => {
-  if (e.key === "Enter" && levelNum < maxLevel) changePage(1);
+  const { tag, data } = getQueryResult();
+  if (e.key === "Enter" && tag === RIGHT && symmetricDifference(new Set(data[0]), targets).size === 0) changePage(1);
 });
 
 renderLevel();

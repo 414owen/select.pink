@@ -124,6 +124,7 @@ html, body {
 }
 
 .hint {
+  color: inherit;
   background-color: transparent !important;
   position: absolute;
   margin-top: -16px;
@@ -139,7 +140,6 @@ html, body {
 
 #sandbox {
   margin: 0 auto;
-  margin-top: 4px;
 }
 
 #sandbox > * :not(.hint):not(.hint2) {
@@ -165,15 +165,18 @@ html, body {
 }
 
 #underlay .selected {
- background-color: #d486ff;
+ background-color: #ff8fff;
 }
 
 pre {
   margin: 0;
 }
 
-.target > .hint {
+.target {
   color: #000;
+}
+
+.target > .hint {
   width: 100%;
 }
 
@@ -206,17 +209,16 @@ body.won > #main {
 }
 
 @keyframes fadein {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from { color: rgba(0,0,0,0); background-color: rgba(0,0,0,0); border-color: rgba(0,0,0,0);  }
+  to {  }
 }
 
 @keyframes fadeout {
-  from { opacity: 1; }
-  to { opacity: 0; }
+  from { }
+  to { color: rgba(0,0,0,0); background-color: rgba(0,0,0,0); border-color: rgba(0,0,0,0); }
 }
 
 .fadein, .fadeout {
-  animation-duration: 0.5s;
   animation-fill-mode: both;
   animation-timing-function: linear;
 }
@@ -246,5 +248,14 @@ details > summary {
 .gum.drop,
 [data-answer]
 {
-  width: 140px;
+  width: 120px;
+}
+
+.tilde
+{
+  width: 100px;
+}
+
+#footer {
+  margin-bottom: 20px;
 }
