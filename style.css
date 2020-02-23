@@ -1,4 +1,4 @@
-html {
+:root {
   background-color: #000;
 }
 
@@ -33,7 +33,7 @@ html, body {
   justify-content: space-between;
 }
 
-#sandbox :not(.hint):not(.hint2) {
+#sandbox :not(.hint) {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
@@ -69,11 +69,11 @@ html, body {
 }
 
 #main .error {
-  background: radial-gradient(circle, rgb(255,130,130) 0%, rgba(255,255,255,0.2) 40%, rgba(0,0,0,0) 90%);
+  background: radial-gradient(circle, rgb(255,130,130) 0%, rgba(213,0,0,0.2) 40%, rgba(0,0,0,0) 90%);
 }
 
 #main .success {
-  background: radial-gradient(circle, rgb(120,210,150) 0%, rgba(255,255,255,0.2) 40%, rgba(0,0,0,0) 90%);
+  background:  radial-gradient(circle, rgb(255, 143, 255) 0%, rgba(255,143,255,0.2) 40%, rgba(0,0,0,0) 90%);
 }
 
 .indicator > * {
@@ -97,7 +97,6 @@ html, body {
 
 #main.error #description {
   color: rgb(255,130,130);
-
 }
 
 .text-center {
@@ -129,7 +128,6 @@ html, body {
   position: absolute;
   margin-top: -16px;
   width: 100%;
-
 }
 
 #overlay {
@@ -142,7 +140,7 @@ html, body {
   margin: 0 auto;
 }
 
-#sandbox > * :not(.hint):not(.hint2) {
+#sandbox > * :not(.hint) {
   position: relative;
   border: 1px solid #aaa;
   min-width: 80px;
@@ -152,7 +150,10 @@ html, body {
   transition: background-color 0.5s linear;
 }
 
-#sandbox > * :not(.hint):not(.hint2):not(.target):not(.selected) {
+/* TODO hover level */
+
+#sandbox > * :not(.hint):not(.target):not(.selected):not(.hover-target) ,
+#sandbox > * :not(.hint):not(.target):not(.selected).hover-target:not(:hover) {
   background-color: #000;
 }
 
@@ -160,8 +161,15 @@ html, body {
   margin: 10px !important;
 }
 
-#underlay .target {
+#underlay .target,
+#underlay .hover-target:hover {
   background-color: #fff;
+  color: #000;
+}
+
+.target > .hint,
+.hover-target:hover > .hint {
+  width: 100%;
 }
 
 #underlay .selected {
@@ -170,14 +178,6 @@ html, body {
 
 pre {
   margin: 0;
-}
-
-.target {
-  color: #000;
-}
-
-.target > .hint {
-  width: 100%;
 }
 
 #win {

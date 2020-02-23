@@ -73,6 +73,7 @@ const overlay = q("#overlay");
 const main = q("#main");
 const description = q("#description");
 const referencesNode = q("#references");
+const referenceContainer = referencesNode.parentNode;
 
 // References
 
@@ -223,6 +224,12 @@ const levels =
     , topology: [{ sub: [{}, { el: "span", target: true }] }, { sub: [{ el: "span", target: true }, { el: "span"}] }]
     , blacklist: [commaBlacklist]
     , references: [firstOfTypeHint, nthOfTypeHint]
+    }
+  , { description: "select the second last spans"
+    , optimal: "span:nth-last-of-type(2)"
+    , topology: [{ sub: [{ el: "span" }, { el: "span", target: true }, { el: "span" }] }, { sub: [{ el: "span", target: true }, { el: "span"}] }]
+    , blacklist: [commaBlacklist]
+    , references: [nthLastOfTypeHint]
     }
   , { description: "select the empty elements"
     , optimal: ":empty"
@@ -500,6 +507,7 @@ const renderLevel = () => {
 
 const changePage = n => {
   levelNum += n;
+  referenceContainer.open = false;
   location.hash = levelNum;
   setDisabled(true, input);
   disablePagination(true);
