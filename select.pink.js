@@ -608,13 +608,13 @@ const notCompleted = () => {
 
 const onValid = ([els, hls]) => {
   renderDescription(level().description);
-  clearMatchColours();
   colourMatches(hls);
   if (symmetricDifference(new Set(els), targets).size === 0) onComplete();
   else notCompleted();
 };
 
 const onInputChange = () => {
+  clearMatchColours();
   const { tag, data } = getQueryResult();
   if (tag === LEFT) onInvalid(data);
   else onValid(data);

@@ -259,3 +259,7 @@ details > summary {
 #footer {
   margin-bottom: 20px;
 }
+
+#vertical-content {
+  flex-grow: 1;
+}
