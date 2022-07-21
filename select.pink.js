@@ -91,7 +91,7 @@ const nthChildHint = ["nth child selector", "https://developer.mozilla.org/en-US
 const nthLastChildHint = ["nth last child selector", "https://developer.mozilla.org/en-US/docs/Web/CSS/:nth-last-child"];
 const idSelectorHint = ["id selectors", "https://developer.mozilla.org/en-US/docs/Web/CSS/ID_selectors"];
 const attributeSelectorHint = ["attribute selector", "https://developer.mozilla.org/en-US/docs/Web/CSS/Attribute_selectors"];
-const decendantCombinatorHint = ["decentant combinator", "https://developer.mozilla.org/en-US/docs/Web/CSS/Descendant_combinator"];
+const descendantCombinatorHint = ["descendant combinator", "https://developer.mozilla.org/en-US/docs/Web/CSS/Descendant_combinator"];
 const childCombinatorHint = ["child combinator", "https://developer.mozilla.org/en-US/docs/Web/CSS/Child_combinator"];
 const emptyHint = ["empty selector", "https://developer.mozilla.org/en-US/docs/Web/CSS/:empty"];
 const notHint = ["not combinator", "https://developer.mozilla.org/en-US/docs/Web/CSS/:not"];
@@ -174,11 +174,11 @@ const levels =
                 ]
     , references: [idSelectorHint, classSelectorHint]
     }
-  , { description: "select the decendant nodes"
+  , { description: "select the descendant nodes"
     , optimal: "*>*"
     , blacklist: [commaBlacklist, emptyBlacklist]
     , topology: [{ sub: { target: true, sub: { target: true } } }]
-    , references: [decendantCombinatorHint]
+    , references: [descendantCombinatorHint]
     }
   , { description: "select the child node"
     , optimal: "#top>*"
